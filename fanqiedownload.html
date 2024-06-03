@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>搜索页面示例</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script>
+    // 假设 globleip 已经在某个地方定义，例如通过脚本注入或硬编码在页面中
+    var globleip = 'http://192.168.0.102:9999'// 替换为你的服务器IP或域名
+
+    function getchaptercontent(url) {  
+          
+            
+        fetch(url)
+		    // fetch()接收到的response是一个 Stream 对象
+		    // response.json()是一个异步操作，取出所有内容，并将其转为 JSON 对象
+		    .then(response => response.json())
+		    .then(jsonjiexi => //获取到的json数据
+		    {
+			    var content = jsonjiexi.data.data.content;  
+			  return content;
+			    
+		    })
+}
+
+    function search() {
+        // 获取输入框的值
+        var inputValue = document.getElementById('searchInput').value;
+
+        // 构造URL
+        var url = globleip + '/search?query=' + encodeURIComponent(inputValue) + '&page=1';
+
+        // 在控制台中打印URL（你可以在这里添加更多逻辑，如发送AJAX请求等）
+        console.log('访问的URL:', url);
+		  // Create a container for the table if it doesn't exist
+           var tableContainer = document.getElementById('tableContainer');  
+        if (!tableContainer) {  
+            tableContainer = document.createElement('div');  
+            tableContainer.id = 'tableContainer';  
+            document.body.insertBefore(tableContainer, document.body.lastChild); // Insert before the last child  
+        }  
+  
+        // Clear the container if it already has content  
+        tableContainer.innerHTML = '';  
+  
+            
+        // Create the table
+        var table = document.createElement('table');
+		table.style.border = '1px solid black'; // 合并相邻边框
+        table.style.width = '100%'; // 设置表格宽度（可选）
+        tableContainer.appendChild(table);
+        // 如果需要，你可以在这里使用fetch或其他方法来发送HTTP请求
+         fetch(url)
+           .then(response => response.json())
+           .then(data => {
+               // 获取第一个search_tab中的data数组
+const searchTabs = data.data.search_tabs;
+if (searchTabs.length > 0) {
+const books = searchTabs[0].data;
+	console.log("一共有"+books.length +"本书")
+	console.log(books)
+	if (books.length > 0) {
+		var row = table.insertRow(-1); // Insert a new row at the end
+		
+            // Add columns to the row
+           row.insertCell(0).textContent = "书名";  
+			// 类似地，对其他属性也进行检查  
+			row.insertCell(1).textContent = "作者";  
+			row.insertCell(2).textContent = "字数"; // 注意这里应该确保是字符串或可以转换为字符串的值  
+			row.insertCell(3).textContent = "书id";  
+    for(var i=0;i<books.length;i++){
+         console.log(books[i])
+        // 获取第一本书的数据（注意这里book_data是一个数组）
+           if (books[i].book_data == null || books[i].book_data === undefined) {  
+                console.log('第' + (i + 1) + '本书没有book_data');  
+                continue; // 如果没有book_data，则跳过当前循环，继续下一次迭代  
+            } 
+        const BookData = books[i].book_data;
+            console.log(BookData)
+            // 提取第一本书的信息（这里假设book_data数组中的对象有alias_name和author等字段）
+            const book = BookData[0];
+            
+
+           row = table.insertRow(-1)
+            // Add columns to the row
+           row.insertCell(-1).textContent = book.book_name ? book.book_name : '空';  
+  
+// 类似地，对其他属性也进行检查  
+row.insertCell(-1).textContent = book.author ? book.author : '空';  
+row.insertCell(-1).textContent = book.word_number ? book.word_number : '空'; // 注意这里应该确保是字符串或可以转换为字符串的值  
+row.insertCell(-1).textContent = book.book_id ? book.book_id : '空';  
+  
+
+            // Add download button column
+            var downloadCell = row.insertCell(-1);
+            var downloadButton = document.createElement('button');
+            downloadButton.textContent = '下载';
+            downloadButton.addEventListener('click', function() {
+              //获取书籍目录
+              var muluurl = globleip+'/catalog?book_id='+book.book_id
+              console.log("目录url:"+muluurl)
+              var authorm = book.author;
+              var bookname = book.book_name;
+              fetch(muluurl)
+		    // fetch()接收到的response是一个 Stream 对象
+		    // response.json()是一个异步操作，取出所有内容，并将其转为 JSON 对象
+		    .then(response => response.json())
+		    .then(json => //获取到的json数据
+		    {
+			    
+			    var mulu = json.data.data.item_data_list
+			    console.log("总共章节数："+mulu.length)
+			    var content;
+			   for(var j = 0; j <mulu.length ; j++)
+			   {
+				   var title = mulu[j].title
+				   var chapterid = mulu[j].item_id
+				   var chapterurl = globleip+'/content?item_id='+chapterid
+				   console.log("章节URL："+chapterurl)
+				   // 添加到content中，可能还需要添加一些分隔符或换行符  
+                      content += getchaptercontent() + "\n\n"; 
+
+			   }
+			    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+            saveAs(blob,"作者_"+authorm+"-书名_"+bookname+".txt");
+			    
+		    })
+		    .catch(err => console.log('Request Failed', err));
+		              //根据目录id获取章节内容并保存
+		            });
+            downloadCell.appendChild(downloadButton);
+
+        }
+
+        // Append the table to the container
+        
+    } else {
+            console.log("book_data数组是空的");
+        }
+    } else {
+        console.log("books数组是空的");
+    }
+});
+
+
+
+
+
+    }
+</script>
+</head>
+<body>
+
+<h1>搜索页面示例</h1>
+
+<label for="searchInput">搜索：</label>
+<input type="text" id="searchInput" name="searchInput">
+<button type="button" onclick="search()">搜索</button>
+
+</body>
+</html>
